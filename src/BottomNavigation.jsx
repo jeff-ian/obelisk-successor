@@ -13,9 +13,9 @@ const BottomNavigation = () => {
     {
       title: 'Follow Us',
       links: [
-        { name: 'LinkedIn', href: 'https://linkedin.com/company/obelisk' },
-        { name: 'X (formerly Twitter)', href: 'https://twitter.com/obelisk' },
-        { name: 'GitHub', href: 'https://github.com/obelisk' }
+        { name: 'LinkedIn', href: '#', disabled: true },
+        { name: 'X (formerly Twitter)', href: '#', disabled: true },
+        { name: 'GitHub', href: '#', disabled: true }
       ]
     }
   ];
@@ -32,12 +32,16 @@ const BottomNavigation = () => {
               <ul className="space-y-2">
                 {section.links.map((link) => (
                   <li key={link.name}>
-                    <a 
-                      href={link.href}
-                      className="text-[14px] text-[#B3B3B3] hover:text-[#00A6FF] transition-colors duration-200 hover:underline"
+                    <span 
+                      className={`text-[14px] transition-colors duration-200 ${
+                        link.disabled 
+                          ? 'text-[#666666] cursor-not-allowed opacity-50' 
+                          : 'text-[#B3B3B3] hover:text-[#00A6FF] hover:underline'
+                      }`}
+                      title={link.disabled ? 'Coming soon' : ''}
                     >
                       {link.name}
-                    </a>
+                    </span>
                   </li>
                 ))}
               </ul>
