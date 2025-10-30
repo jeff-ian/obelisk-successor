@@ -14,7 +14,18 @@ const WaitlistPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const handleJoinWaitlist = async () => {
+  // Debug: Test button functionality
+  const testClick = () => {
+    console.log("🎯 TEST BUTTON CLICKED - React events working!");
+    console.log("📧 Current email state:", email);
+  };
+
+  const handleJoinWaitlist = async (e) => {
+    // Prevent default form behavior that might interfere
+    if (e) e.preventDefault();
+    
+    console.log("🔵 handleJoinWaitlist TRIGGERED!");
+    
     if (!email.trim()) {
       setMessage('❌ Please enter your email');
       return;
@@ -29,29 +40,41 @@ const WaitlistPage = () => {
     setIsLoading(true);
     setMessage('');
 
-    const { data, error } = await supabase
-      .from('waitlist')
-      .insert([{ 
-        email: email.trim(),
-        signup_method: 'email',
-        created_at: new Date().toISOString()
-      }]);
+    console.log("📤 Attempting Supabase insert for email:", email.trim());
 
-    if (error) {
-      if (error.code === '23505') {
-        setMessage('⚠️ This email is already on the waitlist!');
+    try {
+      const { data, error } = await supabase
+        .from('waitlist')
+        .insert([{ 
+          email: email.trim(),
+          created_at: new Date().toISOString()
+        }])
+        .select(); // Add .select() to get response data
+
+      console.log("📥 Supabase FULL response:", { data, error });
+
+      if (error) {
+        console.error("❌ Supabase error details:", error);
+        if (error.code === '23505') {
+          setMessage('⚠️ This email is already on the waitlist!');
+        } else {
+          setMessage('❌ Failed to join waitlist. Please try again.');
+        }
       } else {
-        setMessage('❌ Failed to join waitlist. Please try again.');
+        console.log("✅ Supabase insert successful:", data);
+        setMessage('✅ Successfully joined the waitlist!');
+        setEmail('');
       }
-    } else {
-      setMessage('✅ Successfully joined the waitlist!');
-      setEmail('');
+    } catch (error) {
+      console.error("💥 Unexpected error:", error);
+      setMessage('❌ Unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleGoogleSignUp = async () => {
+    console.log("🔵 Google OAuth triggered");
     setIsGoogleLoading(true);
     setMessage('');
     
@@ -64,9 +87,10 @@ const WaitlistPage = () => {
       });
       
       if (error) throw error;
+      console.log("✅ Google OAuth initiated:", data);
       
     } catch (error) {
-      console.error('Google OAuth error:', error);
+      console.error('❌ Google OAuth error:', error);
       setMessage('❌ Failed to sign up with Google. Please try again.');
       setIsGoogleLoading(false);
     }
@@ -85,6 +109,15 @@ const WaitlistPage = () => {
             <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
               Join Early Access
             </h1>
+            
+            {/* DEBUG TEST BUTTON */}
+            <button 
+              onClick={testClick}
+              className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl mb-4 transition-all duration-300"
+            >
+              🎯 TEST CLICK BUTTON (Check Console)
+            </button>
+            
             <p className="text-xl text-[#B3B3B3] mb-8">
               Secure your spot with a verified account.
             </p>
@@ -123,37 +156,38 @@ const WaitlistPage = () => {
             </div>
             
             {/* Email Form */}
-            <div className="space-y-6">
-              <div>
-                <input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleJoinWaitlist()}
-                  className="w-full p-4 rounded-xl text-black border border-gray-300 focus:border-[#00A6FF] focus:outline-none transition-colors duration-200 text-lg"
+            <form onSubmit={(e) => { e.preventDefault(); handleJoinWaitlist(); }}>
+              <div className="space-y-6">
+                <div>
+                  <input
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full p-4 rounded-xl text-black border border-gray-300 focus:border-[#00A6FF] focus:outline-none transition-colors duration-200 text-lg"
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <button
+                  type="submit"
                   disabled={isLoading}
-                />
+                  className="w-full bg-[#00A6FF] hover:bg-[#0088CC] text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
+                >
+                  {isLoading ? 'Joining Waitlist...' : 'Continue with Email'}
+                </button>
+                
+                {message && (
+                  <p className={`text-lg ${
+                    message.includes('✅') ? 'text-green-400' : 
+                    message.includes('⚠️') ? 'text-yellow-400' : 
+                    'text-red-400'
+                  }`}>
+                    {message}
+                  </p>
+                )}
               </div>
-              
-              <button
-                onClick={handleJoinWaitlist}
-                disabled={isLoading}
-                className="w-full bg-[#00A6FF] hover:bg-[#0088CC] text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
-              >
-                {isLoading ? 'Joining Waitlist...' : 'Continue with Email'}
-              </button>
-              
-              {message && (
-                <p className={`text-lg ${
-                  message.includes('✅') ? 'text-green-400' : 
-                  message.includes('⚠️') ? 'text-yellow-400' : 
-                  'text-red-400'
-                }`}>
-                  {message}
-                </p>
-              )}
-            </div>
+            </form>
           </div>
         </div>
       </section>

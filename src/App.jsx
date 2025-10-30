@@ -11,11 +11,6 @@ function App() {
   return (
     <Router>
       <div className="bg-[#121212] min-h-screen">
-        {/* Skip to main content for screen readers */}
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
-        
         <main id="main-content">
           <Routes>
             <Route path="/" element={<LandingPage />} />
