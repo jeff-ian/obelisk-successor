@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Performance optimizations */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Optimize animations with reduced-motion support */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out forwards;
+  will-change: opacity, transform;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-fadeIn {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  
+  .hover\\:scale-105:hover {
+    transform: none !important;
+  }
+  
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
+/* Ensure particles are behind content and optimized */
+canvas {
+  z-index: 0;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Optimize image rendering */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Responsive text adjustments with performance in mind */
+@media (max-width: 1199px) {
+  .text-\[48px\] { 
+    font-size: 40px; 
+    line-height: 48px; 
+  }
+  .text-\[36px\] { 
+    font-size: 30px; 
+    line-height: 38px; 
+  }
+  .text-\[28px\] { 
+    font-size: 24px; 
+    line-height: 32px; 
+  }
+}
+
+@media (max-width: 767px) {
+  .text-\[48px\] { 
+    font-size: 32px; 
+    line-height: 40px; 
+  }
+  .text-\[36px\] { 
+    font-size: 24px; 
+    line-height: 32px; 
+  }
+  .text-\[28px\] { 
+    font-size: 22px; 
+    line-height: 28px; 
+  }
+  .text-\[20px\] { 
+    font-size: 18px; 
+    line-height: 26px; 
+  }
+  
+  /* Optimize mobile touch targets */
+  button, 
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Optimize scrolling performance */
+.overflow-hidden {
+  transform: translateZ(0);
+}
+
+/* Reduce layout shifts */
+img, canvas, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Focus styles for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #00A6FF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to main content for screen readers */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #00A6FF;
+  color: white;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  z-index: 10000;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
