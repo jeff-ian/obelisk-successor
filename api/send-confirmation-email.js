@@ -1,10 +1,13 @@
 export default async function handler(req, res) {
+  console.log('🔍 Email API called at:', new Date().toISOString());
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { email, token } = req.body;
+    console.log('📧 Request data:', { email, token });
     
     if (!email || !token) {
       return res.status(400).json({ error: 'Email and token are required' });
@@ -13,8 +16,13 @@ export default async function handler(req, res) {
     const confirmationLink = `https://${req.headers.host}/confirm?token=${token}&email=${encodeURIComponent(email)}`;
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
+    console.log('🔑 RESEND_API_KEY exists:', !!RESEND_API_KEY);
+    console.log('🔗 Confirmation link:', confirmationLink);
+
     if (RESEND_API_KEY) {
-      // Send real email via Resend
+      console.log('🚀 Attempting to send real email via Resend...');
+      
+      // Use Resend's test domain that should work immediately
       const emailResult = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -22,7 +30,7 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'Obelisk <onboarding@resend.dev>', // Change to your domain later
+          from: 'Obelisk <onboarding@resend.dev>', // Resend's test domain
           to: [email],
           subject: 'Confirm Your Obelisk Waitlist Spot 🚀',
           html: `
@@ -56,15 +64,7 @@ export default async function handler(req, res) {
                   <p>Or copy and paste this link in your browser:</p>
                   <p><a href="${confirmationLink}" class="link">${confirmationLink}</a></p>
                   
-                  <p>Once confirmed, you'll be:</p>
-                  <ul>
-                    <li>First to know when we launch</li>
-                    <li>Get early access to features</li>
-                    <li>Receive exclusive updates</li>
-                  </ul>
-                  
-                  <p>We're excited to have you on this journey!</p>
-                  <p>- The Obelisk Team</p>
+                  <p>Once confirmed, you'll be the first to know when we launch and get early access.</p>
                 </div>
                 <div class="footer">
                   <p>If you didn't request to join the Obelisk waitlist, please ignore this email.</p>
@@ -77,10 +77,16 @@ export default async function handler(req, res) {
         }),
       });
 
+      console.log('📨 Resend API status:', emailResult.status);
+      
       if (!emailResult.ok) {
         const errorText = await emailResult.text();
-        console.error('Resend API error:', errorText);
-        throw new Error('Failed to send email via Resend');
+        console.error('❌ Resend API error:', errorText);
+        return res.status(500).json({ 
+          error: 'Failed to send email via Resend', 
+          details: errorText,
+          confirmationLink // Return link for manual testing
+        });
       }
 
       const emailData = await emailResult.json();
@@ -92,10 +98,7 @@ export default async function handler(req, res) {
         messageId: emailData.id
       });
     } else {
-      // No API key - development mode
-      console.log('📧 Email would be sent to:', email);
-      console.log('🔗 Confirmation link:', confirmationLink);
-      
+      console.log('💤 Development mode - email not sent (no RESEND_API_KEY)');
       res.status(200).json({ 
         success: true, 
         message: 'Email queued (RESEND_API_KEY not set)',
@@ -103,7 +106,11 @@ export default async function handler(req, res) {
       });
     }
   } catch (error) {
-    console.error('Error in email API:', error);
-    res.status(500).json({ error: 'Failed to send email' });
+    console.error('💥 Error in email API:', error);
+    res.status(500).json({ 
+      error: 'Failed to send email', 
+      details: error.message,
+      confirmationLink: `https://${req.headers.host}/confirm?token=${req.body?.token}&email=${encodeURIComponent(req.body?.email)}`
+    });
   }
 }
