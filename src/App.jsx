@@ -6,6 +6,7 @@ import TermsPage from './TermsPage';
 import PrivacyPage from './PrivacyPage';
 import WaitlistPage from './WaitlistPage';
 import WaitlistSuccessPage from './WaitlistSuccessPage';
+import ConfirmEmailPage from './ConfirmEmailPage';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/waitlist-success" element={<WaitlistSuccessPage />} />
+            <Route path="/confirm" element={<ConfirmEmailPage />} />
           </Routes>
         </main>
       </div>

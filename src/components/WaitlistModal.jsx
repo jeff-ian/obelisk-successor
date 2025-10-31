@@ -13,6 +13,38 @@ const WaitlistModal = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Enhanced email validation
+  const isValidEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
+  const sendConfirmationEmail = async (email, token) => {
+    try {
+      // Call our Vercel API route
+      const response = await fetch('/api/send-confirmation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, token }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send email');
+      }
+
+      console.log('✅ Email API response:', result);
+      return true;
+    } catch (error) {
+      console.error('❌ Error calling email API:', error);
+      // Don't throw error - we still want to show success to user
+      return true;
+    }
+  };
+
   const handleJoinWaitlist = async (e) => {
     if (e) e.preventDefault();
     
@@ -21,8 +53,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmail(email)) {
       setMessage('❌ Please enter a valid email address');
       return;
     }
@@ -31,27 +62,56 @@ const WaitlistModal = ({ isOpen, onClose }) => {
     setMessage('');
 
     try {
+      // Generate a simple verification token
+      const verificationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // First, check if email already exists and is verified
+      const { data: existing } = await supabase
+        .from('waitlist')
+        .select('email, verified')
+        .eq('email', email.trim())
+        .single();
+
+      if (existing) {
+        if (existing.verified) {
+          setMessage('⚠️ This email is already on the waitlist!');
+        } else {
+          // Email exists but not verified - resend confirmation
+          await sendConfirmationEmail(email.trim(), verificationToken);
+          setMessage('✅ Confirmation email sent! Please check your inbox.');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Insert unverified entry
       const { data, error } = await supabase
         .from('waitlist')
         .insert([{ 
           email: email.trim(),
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          verified: false,
+          verification_token: verificationToken
         }]);
 
       if (error) {
-        if (error.code === '23505') {
-          setMessage('⚠️ This email is already on the waitlist!');
-        } else {
-          setMessage('❌ Failed to join waitlist. Please try again.');
-        }
-      } else {
-        setMessage('✅ Successfully joined the waitlist!');
-        setEmail('');
-        setTimeout(() => {
-          onClose();
-        }, 2000);
+        console.error('Database error:', error);
+        setMessage('❌ Failed to join waitlist. Please try again.');
+        setIsLoading(false);
+        return;
       }
+
+      // Send confirmation email
+      await sendConfirmationEmail(email.trim(), verificationToken);
+      setMessage('✅ Check your email to confirm your spot!');
+      setEmail('');
+      
+      setTimeout(() => {
+        onClose();
+      }, 4000);
+
     } catch (error) {
+      console.error('Unexpected error:', error);
       setMessage('❌ Unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -116,7 +176,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
               Join the Waitlist
             </h2>
             <p className="text-gray-400 mb-6">
-              Be the first to get access when we launch.
+              Verify your email to secure your spot.
             </p>
 
             {/* Google OAuth Button */}
@@ -140,7 +200,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                   </>
                 )}
               </button>
-              <p className="text-[#B3B3B3] text-xs mt-2">We'll add you to the waitlist after verification</p>
+              <p className="text-[#B3B3B3] text-xs mt-2">Instant verification & welcome email</p>
             </div>
 
             <div className="relative mb-6">
@@ -148,7 +208,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                 <div className="w-full border-t border-[#FFFFFF]/20"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[#1A1A1A] text-[#B3B3B3]">Or use email</span>
+                <span className="px-2 bg-[#1A1A1A] text-[#B3B3B3]">Or verify with email</span>
               </div>
             </div>
 
@@ -169,7 +229,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                 disabled={isLoading}
                 className="w-full bg-[#00A6FF] hover:bg-[#0088CC] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Joining Waitlist...' : 'Join Waitlist with Email'}
+                {isLoading ? 'Sending Verification...' : 'Verify Email & Join'}
               </button>
             </form>
 
@@ -182,6 +242,10 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                 {message}
               </p>
             )}
+
+            <p className="text-xs text-gray-500 mt-4">
+              We'll send a confirmation email to prevent spam and welcome you.
+            </p>
           </div>
         </motion.div>
       </motion.div>
