@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// IMPORTANT: Use the SAME supabase client instance everywhere
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -13,7 +14,6 @@ const WaitlistModal = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Enhanced email validation
   const isValidEmail = (email) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
@@ -21,7 +21,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
 
   const sendConfirmationEmail = async (email, token) => {
     try {
-      // Call our Vercel API route
+      console.log('📧 Calling email API for:', email);
       const response = await fetch('/api/send-confirmation-email', {
         method: 'POST',
         headers: {
@@ -31,16 +31,15 @@ const WaitlistModal = ({ isOpen, onClose }) => {
       });
 
       const result = await response.json();
+      console.log('📨 Email API response:', result);
       
       if (!response.ok) {
         throw new Error(result.error || 'Failed to send email');
       }
 
-      console.log('✅ Email API response:', result);
       return true;
     } catch (error) {
       console.error('❌ Error calling email API:', error);
-      // Don't throw error - we still want to show success to user
       return true;
     }
   };
@@ -62,21 +61,24 @@ const WaitlistModal = ({ isOpen, onClose }) => {
     setMessage('');
 
     try {
-      // Generate a simple verification token
       const verificationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
       
-      // First, check if email already exists and is verified
-      const { data: existing } = await supabase
+      console.log('🔑 Generated token:', verificationToken);
+      
+      const { data: existing, error: checkError } = await supabase
         .from('waitlist')
         .select('email, verified')
         .eq('email', email.trim())
         .single();
 
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Check error:', checkError);
+      }
+
       if (existing) {
         if (existing.verified) {
           setMessage('⚠️ This email is already on the waitlist!');
         } else {
-          // Email exists but not verified - resend confirmation
           await sendConfirmationEmail(email.trim(), verificationToken);
           setMessage('✅ Confirmation email sent! Please check your inbox.');
         }
@@ -84,7 +86,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
         return;
       }
 
-      // Insert unverified entry
+      console.log('💾 Inserting into waitlist...');
       const { data, error } = await supabase
         .from('waitlist')
         .insert([{ 
@@ -95,13 +97,12 @@ const WaitlistModal = ({ isOpen, onClose }) => {
         }]);
 
       if (error) {
-        console.error('Database error:', error);
+        console.error('❌ Database error:', error);
         setMessage('❌ Failed to join waitlist. Please try again.');
         setIsLoading(false);
         return;
       }
 
-      // Send confirmation email
       await sendConfirmationEmail(email.trim(), verificationToken);
       setMessage('✅ Check your email to confirm your spot!');
       setEmail('');
@@ -111,7 +112,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
       }, 4000);
 
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('💥 Unexpected error:', error);
       setMessage('❌ Unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -123,8 +124,9 @@ const WaitlistModal = ({ isOpen, onClose }) => {
     setMessage('');
     
     try {
-      sessionStorage.setItem('waitlist_redirect', 'true');
+      console.log('🔐 Starting Google OAuth...');
       
+      // CRITICAL FIX: Use Supabase Auth for Google OAuth
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -136,11 +138,16 @@ const WaitlistModal = ({ isOpen, onClose }) => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Google OAuth error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Google OAuth initiated successfully');
       
     } catch (error) {
-      console.error('Google OAuth error:', error);
-      setMessage('❌ Failed to sign up with Google. Please try again.');
+      console.error('💥 Google OAuth failed:', error);
+      setMessage('❌ Failed to connect with Google. Please try email verification.');
       setIsGoogleLoading(false);
     }
   };
@@ -176,10 +183,10 @@ const WaitlistModal = ({ isOpen, onClose }) => {
               Join the Waitlist
             </h2>
             <p className="text-gray-400 mb-6">
-              Verify your email to secure your spot.
+              Secure your spot for early access.
             </p>
 
-            {/* Google OAuth Button */}
+            {/* Google OAuth Button - FIXED */}
             <div className="mb-6">
               <button
                 onClick={handleGoogleSignUp}
@@ -200,7 +207,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                   </>
                 )}
               </button>
-              <p className="text-[#B3B3B3] text-xs mt-2">Instant verification & welcome email</p>
+              <p className="text-[#B3B3B3] text-xs mt-2">Instant verification</p>
             </div>
 
             <div className="relative mb-6">
@@ -208,7 +215,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
                 <div className="w-full border-t border-[#FFFFFF]/20"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[#1A1A1A] text-[#B3B3B3]">Or verify with email</span>
+                <span className="px-2 bg-[#1A1A1A] text-[#B3B3B3]">Or use email</span>
               </div>
             </div>
 
@@ -244,7 +251,7 @@ const WaitlistModal = ({ isOpen, onClose }) => {
             )}
 
             <p className="text-xs text-gray-500 mt-4">
-              We'll send a confirmation email to prevent spam and welcome you.
+              We'll send a confirmation email to prevent spam.
             </p>
           </div>
         </motion.div>
